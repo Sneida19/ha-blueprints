@@ -1,4 +1,3 @@
-
 blueprint:
   name: Anker SOLIX Dynamische Steuerung
   description: Dynamische Steuerung der Anker SOLIX Solarbank 2 E1600 AC mit Nulleinspeisung, Batterieladung und Hysterese.
@@ -71,8 +70,7 @@ action:
     target:
       entity_id: !input einspeisevorgabe_number
     data:
-      value: >
-        {{ states(!input 'einspeisung_sensor') | float(0) | round(0) }}
+      value: "{{ states(!input 'einspeisung_sensor') | float(0) | round(0) }}"
 
   # Optional Rücksetzung, wenn Einspeisung unter Minimum fällt
   - delay:
@@ -87,3 +85,4 @@ action:
       value: 0
 
 mode: restart
+

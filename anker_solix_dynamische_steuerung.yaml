@@ -70,7 +70,7 @@ action:
     target:
       entity_id: !input einspeisevorgabe_number
     data:
-      value: "{{ states(!input einspeisung_sensor) | float(0) | round(0) }}"
+      value: "{{ states[inputs.einspeisung_sensor] | float(0) | round(0) }}"
 
   # Optional Rücksetzung, wenn Einspeisung unter Minimum fällt
   - delay:

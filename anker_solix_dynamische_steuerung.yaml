@@ -1,0 +1,89 @@
+
+blueprint:
+  name: Anker SOLIX Dynamische Steuerung
+  description: Dynamische Steuerung der Anker SOLIX Solarbank 2 E1600 AC mit Nulleinspeisung, Batterieladung und Hysterese.
+  domain: automation
+  input:
+    einspeisung_sensor:
+      name: Sensor Netzeinspeisung
+      selector:
+        entity:
+          domain: sensor
+    soc_sensor:
+      name: Sensor Batterieladestand (SoC)
+      selector:
+        entity:
+          domain: sensor
+    einspeisevorgabe_number:
+      name: Entität Einspeisevorgabe (number)
+      selector:
+        entity:
+          domain: number
+    min_einspeisung:
+      name: Mindest-Einspeisung (Watt)
+      default: 100
+      selector:
+        number:
+          min: 0
+          max: 1000
+          unit_of_measurement: W
+    hysterese_seconds:
+      name: Hysterese (Sekunden)
+      default: 30
+      selector:
+        number:
+          min: 5
+          max: 300
+          unit_of_measurement: s
+    soc_max:
+      name: Maximaler SoC für Laden (%)
+      default: 80
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+    soc_min:
+      name: Minimaler SoC für Netzladung (%)
+      default: 30
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+
+trigger:
+  - platform: state
+    entity_id: !input einspeisung_sensor
+    for:
+      seconds: !input hysterese_seconds
+
+condition:
+  - condition: numeric_state
+    entity_id: !input einspeisung_sensor
+    above: !input min_einspeisung
+  - condition: numeric_state
+    entity_id: !input soc_sensor
+    below: !input soc_max
+
+action:
+  - service: number.set_value
+    target:
+      entity_id: !input einspeisevorgabe_number
+    data:
+      value: >
+        {{ states(!input 'einspeisung_sensor') | float(0) | round(0) }}
+
+  # Optional Rücksetzung, wenn Einspeisung unter Minimum fällt
+  - delay:
+      seconds: 120
+  - condition: numeric_state
+    entity_id: !input einspeisung_sensor
+    below: !input min_einspeisung
+  - service: number.set_value
+    target:
+      entity_id: !input einspeisevorgabe_number
+    data:
+      value: 0
+
+mode: restart

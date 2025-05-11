@@ -1,10 +1,15 @@
 blueprint:
-  name: Anker SOLIX Dynamische Steuerung
-  description: Dynamische Steuerung der Anker SOLIX Solarbank 2 E1600 AC mit Nulleinspeisung, Batterieladung und Hysterese.
+  name: Anker SOLIX Netzladung bei Netzeinspeisung
+  description: Aktiviert die Netzladung und setzt die Einspeisevorgabe auf die PV-Leistung, wenn für eine bestimmte Zeit eingespeist wird.
   domain: automation
   input:
     einspeisung_sensor:
       name: Sensor Netzeinspeisung
+      selector:
+        entity:
+          domain: sensor
+    pv_sensor:
+      name: Sensor PV-Leistung
       selector:
         entity:
           domain: sensor
@@ -18,14 +23,11 @@ blueprint:
       selector:
         entity:
           domain: number
-    min_einspeisung:
-      name: Mindest-Einspeisung (Watt)
-      default: 100
+    notladeoption_switch:
+      name: Notladeoption Switch
       selector:
-        number:
-          min: 0
-          max: 1000
-          unit_of_measurement: W
+        entity:
+          domain: switch
     hysterese_seconds:
       name: Hysterese (Sekunden)
       default: 30
@@ -36,15 +38,7 @@ blueprint:
           unit_of_measurement: s
     soc_max:
       name: Maximaler SoC für Laden (%)
-      default: 80
-      selector:
-        number:
-          min: 0
-          max: 100
-          unit_of_measurement: "%"
-    soc_min:
-      name: Minimaler SoC für Netzladung (%)
-      default: 30
+      default: 95
       selector:
         number:
           min: 0
@@ -60,24 +54,34 @@ trigger:
 condition:
   - condition: numeric_state
     entity_id: !input einspeisung_sensor
-    above: !input min_einspeisung
+    above: 0
   - condition: numeric_state
     entity_id: !input soc_sensor
     below: !input soc_max
 
 action:
+  # Notladeoption aktivieren
+  - service: switch.turn_on
+    target:
+      entity_id: !input notladeoption_switch
+
+  # Einspeisevorgabe setzen auf PV-Leistung
   - service: number.set_value
     target:
       entity_id: !input einspeisevorgabe_number
     data:
-      value: "{{ states[inputs.einspeisung_sensor] | float(0) | round(0) }}"
+      value: >
+        {{ states[inputs.pv_sensor] | float(0) | round(0) }}
 
-  # Optional Rücksetzung, wenn Einspeisung unter Minimum fällt
+  # Rücksetzung nach 2 Minuten
   - delay:
       seconds: 120
   - condition: numeric_state
     entity_id: !input einspeisung_sensor
-    below: !input min_einspeisung
+    below: 1
+  - service: switch.turn_off
+    target:
+      entity_id: !input notladeoption_switch
   - service: number.set_value
     target:
       entity_id: !input einspeisevorgabe_number
